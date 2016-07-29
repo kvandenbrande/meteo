@@ -7,69 +7,95 @@ import urllib.request
 from urllib.request import urlopen
 import json
 import shutil
-import os
+import os, sys
 import time
 from tweet import tweet_message
+from internet import is_connected
 
 
 #Weerbericht van aan zee op twitter
 
 
 def meteo():
-    get_picture()
-    time.sleep(15)
-    send_tweet()
-    time.sleep(30)
-    delete_picture()
-    
-    
+    if is_connected()==True:
+        get_picture()
+        time.sleep(15)
+        get_weather()
+        send_tweet()
+        time.sleep(30)
+        delete_picture()
+        sys.exit()
+    else:
+        sys.exit()    
+
+
 
 def get_weather():
-    f = urlopen('http://api.wunderground.com/api/e3afd129ef7787a4/conditions/lang:NL/q/pws:IVLAAMSG89.json')
-    json_string = f.read().decode('utf-8')
-    parsed_json = json.loads(json_string)
-    #temperatuur
-    temp_c = parsed_json['current_observation']['temp_c']
-    #status
-    weather = parsed_json['current_observation']['weather']
-    #kans op neerslag
-    rain = get_POP()
-    t_rain = "% kans op neerslag"
-    #windrichting
-    wind_dir = parsed_json['current_observation']['wind_dir']
-    #windsnelheid
-    wind_gust_kph = parsed_json['current_observation']['wind_gust_kph']
-    f.close()
-    return ("%s; %s°C; %s%s; wind: %skm/h %s" % (weather, temp_c, rain, t_rain, wind_gust_kph, wind_dir))
-    
+    x = urlopen('http://api.wunderground.com/api/e3afd129ef7787a4/hourly/lang:NL/q/pws:IVLAAMSG89.json')
+    x_json_string = x.read().decode('utf-8')
+    global pop_parsed
+    pop_parsed = json.loads(x_json_string)
+    x.close()
+    time.sleep(1)
+    y = urlopen('http://api.wunderground.com/api/e3afd129ef7787a4/conditions/lang:NL/q/pws:IDEHAAN12.json')
+    y_json_string = y.read().decode('utf-8')
+    global uv_parsed
+    uv_parsed = json.loads(y_json_string)
+    y.close()
+    time.sleep(1)
+    z = urlopen('http://api.wunderground.com/api/e3afd129ef7787a4/conditions/lang:NL/q/pws:IVLAAMSG89.json')
+    z_json_string = z.read().decode('utf-8')
+    global weather_parsed
+    weather_parsed = json.loads(z_json_string)
+    z.close()
 
-def get_POP():
-    h = urlopen('http://api.wunderground.com/api/e3afd129ef7787a4/hourly/lang:NL/q/pws:IVLAAMSG89.json')
-    json_string = h.read().decode('utf-8')
-    parsed_json = json.loads(json_string)
-    #POP
-    hourly = parsed_json['hourly_forecast']
-    rain = hourly[0]['pop']
-    h.close()
-    return (rain)
     
-
-def get_UV():
-    g = urlopen('http://api.wunderground.com/api/e3afd129ef7787a4/conditions/lang:NL/q/pws:IDEHAAN12.json')
-    json_string = g.read().decode('utf-8')
-    parsed_json = json.loads(json_string)
-    #UV
-    UV = parsed_json['current_observation']['UV']
-    g.close()
-    if int(UV) < 4:
-        return (" ")
+    
+def set_description():
+    description = weather_parsed['current_observation']['weather']
+    if description =="":
+        description = uv_parsed['current_observation']['weather']
+        if description =="":
+            description = "Typisch zeeweertje :-) "
+            return description
+        else:
+            return description + "; "
     else:
-        return ("; UV-index:%s " % (UV))
-    
+        return description + "; "
 
-def get_message():
-    hashtag = "#weer #dekust"
-    message = get_weather() + get_UV() + hashtag
+
+def set_temperature():
+    temperature = weather_parsed['current_observation']['temp_c']
+    return str(temperature) + "°C; "
+
+
+def set_rain():
+    hourly = pop_parsed['hourly_forecast']
+    rain = hourly[0]['pop']
+    return str(rain) + "% kans op neerslag; "
+
+
+def set_wind():
+    wind_dir = weather_parsed['current_observation']['wind_dir']
+    wind_gust_kph = weather_parsed['current_observation']['wind_gust_kph']
+    if int(wind_gust_kph) == 0:
+        wind = "windstil"
+    else:
+        wind = "wind: " + str(wind_gust_kph) + "km/h " + wind_dir
+    return wind
+
+
+def set_uv():
+    uv = uv_parsed['current_observation']['UV']
+    if int(uv) < 4:
+        return ""
+    else:
+        return "; UV-index:" + str(uv)
+
+
+def set_message():
+    hashtag = " #weer #dekust"
+    message = str(set_description()) + str(set_temperature()) + str(set_rain()) + str(set_wind()) + str(set_uv()) + hashtag
     return(message)
 
 	
@@ -88,7 +114,7 @@ def get_backup_picture():
 
 def send_tweet():
     picture = '/home/pi/Desktop/meteo/wb.jpg'  
-    message = get_message()
+    message = set_message()
     tweet_message(picture,message) 
 
 
