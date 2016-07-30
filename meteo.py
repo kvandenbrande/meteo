@@ -76,12 +76,17 @@ def set_rain():
 
 
 def set_wind():
-    wind_dir = weather_parsed['current_observation']['wind_dir']
-    wind_gust_kph = weather_parsed['current_observation']['wind_gust_kph']
-    if int(wind_gust_kph) == 0:
-        wind = "windstil"
+    wind_dir1 = weather_parsed['current_observation']['wind_dir']
+    wind_dir2 = uv_parsed['current_observation']['wind_dir']
+    wind_gust_kph1 = weather_parsed['current_observation']['wind_gust_kph']
+    wind_gust_kph2 = uv_parsed['current_observation']['wind_gust_kph']
+    if int(wind_gust_kph1) == 0:
+        if int(wind_gust_kph2) == 0:
+            wind = "windstil"
+        else:
+            wind = "wind: " + str(wind_gust_kph2) + "km/h " + wind_dir2
     else:
-        wind = "wind: " + str(wind_gust_kph) + "km/h " + wind_dir
+        wind = "wind: " + str(wind_gust_kph1) + "km/h " + wind_dir1
     return wind
 
 
